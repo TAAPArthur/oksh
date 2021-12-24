@@ -203,6 +203,7 @@ static struct macro_state macro;
 enum expand_mode { NONE, EXPAND, COMPLETE, PRINT };
 static enum expand_mode expanded = NONE;/* last input was expanded */
 
+static int last_char;
 int
 x_vi(char *buf, size_t len)
 {
@@ -245,8 +246,14 @@ x_vi(char *buf, size_t len)
 				continue;
 			}
 		}
+        if(insert && (last_char == 'j' && c == 'j' || last_char == 'k' && c == 'k')) {
+            vi_hook(edchars.erase);
+            c = CTRL('[');
+        }
+
 		if (vi_hook(c))
 			break;
+        last_char = c;
 		x_flush();
 	}
 
