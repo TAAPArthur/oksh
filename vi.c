@@ -2031,7 +2031,7 @@ ed_mov_opt(int col, char *wb)
 
 /* replace word with all expansions (ie, expand word*) */
 static int
-expand_word(int command)
+expand_or_cycle_word(int command, int limit)
 {
 	static struct edstate *buf;
 	int rval = 0;
@@ -2039,13 +2039,15 @@ expand_word(int command)
 	int start, end;
 	char **words;
 	int i;
+	static index;
 
 	/* Undo previous expansion */
 	if (command == 0 && expanded == EXPAND && buf) {
 		restore_edstate(es, buf);
 		buf = NULL;
 		expanded = NONE;
-		return 0;
+        if(index == 0)
+            return 0;
 	}
 	if (buf) {
 		free_edstate(buf);
@@ -2064,7 +2066,7 @@ expand_word(int command)
 	expanded = EXPAND;
 	del_range(start, end);
 	es->cursor = start;
-	for (i = 0; i < nwords; ) {
+	for (i = limit ? index : 0; i < nwords; ) {
 		if (x_escape(words[i], strlen(words[i]), x_vi_putbuf) != 0) {
 			rval = -1;
 			break;
@@ -2073,7 +2075,11 @@ expand_word(int command)
 			rval = -1;
 			break;
 		}
+		if(limit)
+			break;
 	}
+	if(limit)
+		index = (index+ 1) % nwords;
 	i = buf->cursor - end;
 	if (rval == 0 && i > 0)
 		es->cursor += i;
@@ -2082,6 +2088,17 @@ expand_word(int command)
 	lastac = 0;
 	refresh_line(0);
 	return rval;
+}
+
+/* replace word with all expansions (ie, expand word*) */
+static int
+expand_word(int command) {
+	return expand_or_cycle_word(command, 0);
+}
+
+static int
+cycle_word(int command) {
+	return expand_or_cycle_word(command, 1);
 }
 
 static int
@@ -2097,17 +2114,22 @@ complete_word(int command, int count)
 	int is_unique;
 	int is_command;
 
+	if (command == 0 && expanded == EXPAND) {
+		return cycle_word(command);
+	}
+
 	/* Undo previous completion */
 	if (command == 0 && expanded == COMPLETE && buf) {
 		print_expansions(buf);
 		expanded = PRINT;
-		return 0;
+		if(index == 0)
+			return 0;
 	}
 	if (command == 0 && expanded == PRINT && buf) {
 		restore_edstate(es, buf);
 		buf = NULL;
 		expanded = NONE;
-		return 0;
+		return cycle_word(command);
 	}
 	if (buf) {
 		free_edstate(buf);
