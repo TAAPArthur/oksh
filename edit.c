@@ -680,6 +680,14 @@ x_try_array(const char *buf, int buflen, const char *want, int wantlen,
 			n++;
 	}
 
+	setint(global("COMP_CWORD"), n);
+	setstr(global("COMP_LINE"), buf, 1);
+	setint(global("COMP_POINT"), want + wantlen - buf);
+	struct tbl* completion_helper = findcom("complete_helper", -1);
+	if(completion_helper && completion_helper->flag & ISSET)
+		execute(completion_helper->val.t, 0, NULL);
+	bool compreply = 0;
+
 	/* Try to find the array. */
 	if (asprintf(&name, "complete_%.*s_%d", cmdlen, cmd, n) == -1)
 		internal_errorf("unable to allocate memory");
@@ -690,8 +698,13 @@ x_try_array(const char *buf, int buflen, const char *want, int wantlen,
 			internal_errorf("unable to allocate memory");
 		v = global(name);
 		free(name);
-		if (~v->flag & (ISSET|ARRAY))
-			return 0;
+		if (~v->flag & (ISSET|ARRAY) && completion_helper && completion_helper->flag & ISSET) {
+			v = global("COMPREPLY");
+			if (~v->flag & (ISSET|ARRAY)) {
+				return 0;
+			}
+			compreply = 1;
+        }
 	}
 
 	/* Walk the array and build words list. */
@@ -715,6 +728,9 @@ x_try_array(const char *buf, int buflen, const char *want, int wantlen,
 	}
 	if (*nwords != 0)
 		(*words)[*nwords] = NULL;
+
+	if(compreply)
+		unset(v, 0);
 
 	return *nwords != 0;
 }
