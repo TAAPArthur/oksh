@@ -29,7 +29,6 @@
 #include <vis.h>
 #endif
 
-static void	history_write(void);
 static FILE	*history_open(void);
 static void	history_load(Source *);
 static void	history_close(void);
@@ -677,22 +676,6 @@ histsave(int lno, const char *cmd, int dowrite)
 		return;
 	}
 
-	if (dowrite && histfh) {
-#ifndef SMALL
-		struct stat	sb;
-
-		history_lock(LOCK_EX);
-		if (fstat(fileno(histfh), &sb) != -1) {
-			if (timespeccmp(&sb.st_mtim, &last_sb.st_mtim, ==))
-				; /* file is unchanged */
-			else {
-				histreset();
-				history_load(hist_source);
-			}
-		}
-#endif
-	}
-
 	if (histptr < history + histsize - 1)
 		histptr++;
 	else { /* remove oldest command */
@@ -704,6 +687,7 @@ histsave(int lno, const char *cmd, int dowrite)
 
 	if (dowrite && histfh) {
 #ifndef SMALL
+		history_lock(LOCK_EX);
 		char *encoded;
 
 		/* append to file */
@@ -713,7 +697,6 @@ histsave(int lno, const char *cmd, int dowrite)
 			fflush(histfh);
 			fstat(fileno(histfh), &last_sb);
 			line_co++;
-			history_write();
 			free(encoded);
 		}
 		history_lock(LOCK_UN);
@@ -794,8 +777,6 @@ history_load(Source *s)
 		histsave(line_co, line, 0);
 		line_co++;
 	}
-
-	history_write();
 }
 
 #define HMAGIC1 0xab
@@ -837,37 +818,6 @@ hist_init(Source *s)
 	history_load(s);
 
 	history_lock(LOCK_UN);
-}
-
-static void
-history_write(void)
-{
-	char		**hp, *encoded;
-
-	/* see if file has grown over 25% */
-	if (line_co < histsize + (histsize / 4))
-		return;
-
-	/* rewrite the whole caboodle */
-	rewind(histfh);
-	if (ftruncate(fileno(histfh), 0) == -1) {
-		bi_errorf("failed to rewrite history file - %s",
-		    strerror(errno));
-	}
-	for (hp = history; hp <= histptr; hp++) {
-		if (stravis(&encoded, *hp, VIS_SAFE | VIS_NL) != -1) {
-			if (fprintf(histfh, "%s\n", encoded) == -1) {
-				free(encoded);
-				return;
-			}
-			free(encoded);
-		}
-	}
-
-	line_co = histsize;
-
-	fflush(histfh);
-	fstat(fileno(histfh), &last_sb);
 }
 
 void
