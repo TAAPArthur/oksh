@@ -712,7 +712,7 @@ history_open(void)
 	struct stat	sb;
 	int		fd, fddup;
 
-	if ((fd = open(hname, O_RDWR | O_CREAT | O_EXLOCK, 0600)) == -1)
+	if ((fd = open(hname, O_RDWR | O_CREAT | O_EXLOCK | O_CLOEXEC, 0600)) == -1)
 		return NULL;
 	if (fstat(fd, &sb) == -1 || sb.st_uid != getuid()) {
 		close(fd);
