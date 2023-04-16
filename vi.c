@@ -2054,7 +2054,7 @@ expand_or_cycle_word(int command, int limit)
 		buf = NULL;
 	}
 
-	nwords = x_cf_glob(XCF_COMMAND_FILE|XCF_FULLPATH,
+	nwords = x_cf_glob(XCF_COMMAND_FILE,
 	    es->cbuf, es->linelen, es->cursor,
 	    &start, &end, &words, NULL);
 	if (nwords == 0) {
@@ -2139,7 +2139,7 @@ complete_word(int command, int count)
 	/* XCF_FULLPATH for count 'cause the menu printed by print_expansions()
 	 * was done this way.
 	 */
-	nwords = x_cf_glob(XCF_COMMAND_FILE | (count ? XCF_FULLPATH : 0),
+	nwords = x_cf_glob(XCF_COMMAND_FILE,
 	    es->cbuf, es->linelen, es->cursor,
 	    &start, &end, &words, &is_command);
 	if (nwords == 0) {
@@ -2163,14 +2163,6 @@ complete_word(int command, int count)
 		if (is_command) {
 			match = words[count] +
 			    x_basename(words[count], NULL);
-			/* If more than one possible match, use full path */
-			for (i = 0; i < nwords; i++)
-				if (i != count &&
-				    strcmp(words[i] + x_basename(words[i],
-				    NULL), match) == 0) {
-					match = words[count];
-					break;
-				}
 		} else
 			match = words[count];
 		match_len = strlen(match);
@@ -2219,7 +2211,7 @@ print_expansions(struct edstate *e)
 	char **words;
 	int is_command;
 
-	nwords = x_cf_glob(XCF_COMMAND_FILE|XCF_FULLPATH,
+	nwords = x_cf_glob(XCF_COMMAND_FILE,
 	    e->cbuf, e->linelen, e->cursor,
 	    &start, &end, &words, &is_command);
 	if (nwords == 0) {
