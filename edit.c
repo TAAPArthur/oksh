@@ -652,6 +652,7 @@ x_try_array(const char *buf, int buflen, const char *want, int wantlen,
 	int cmdlen, n, i, slen;
 	char *name, *s;
 	struct tbl *v, *vp;
+	static struct tbl *last_v;
 
 	*nwords = 0;
 	*words = NULL;
@@ -680,32 +681,42 @@ x_try_array(const char *buf, int buflen, const char *want, int wantlen,
 			n++;
 	}
 
-	setint(global("COMP_CWORD"), n);
-	setstr(global("COMP_LINE"), buf, 1);
-	setint(global("COMP_POINT"), want + wantlen - buf);
-	struct tbl* completion_helper = findcom("complete_helper", -1);
-	if(completion_helper && completion_helper->flag & ISSET)
-		execute(completion_helper->val.t, 0, NULL);
-	bool compreply = 0;
+	int old_cword, old_cpoint;
+    if (getint(global("COMP_CWORD"), &old_cword, false) != -1 && old_cword == n &&
+            getint(global("COMP_POINT"), &old_cpoint, false) != -1 && old_cpoint  == want + wantlen - buf) {
+			v = last_v;
+    } else {
+		if(last_v) {
+			unset(last_v, 0);
+			last_v = NULL;
+		}
 
-	/* Try to find the array. */
-	if (asprintf(&name, "complete_%.*s_%d", cmdlen, cmd, n) == -1)
-		internal_errorf("unable to allocate memory");
-	v = global(name);
-	free(name);
-	if (~v->flag & (ISSET|ARRAY)) {
-		if (asprintf(&name, "complete_%.*s", cmdlen, cmd) == -1)
+		setint(global("COMP_CWORD"), n);
+		setstr(global("COMP_LINE"), buf, 1);
+		setint(global("COMP_POINT"), want + wantlen - buf);
+		struct tbl* completion_helper = findcom("complete_helper", -1);
+		if(completion_helper && completion_helper->flag & ISSET)
+			execute(completion_helper->val.t, 0, NULL);
+
+		/* Try to find the array. */
+		if (asprintf(&name, "complete_%.*s_%d", cmdlen, cmd, n) == -1)
 			internal_errorf("unable to allocate memory");
 		v = global(name);
 		free(name);
-		if (~v->flag & (ISSET|ARRAY) && completion_helper && completion_helper->flag & ISSET) {
-			v = global("COMPREPLY");
-			if (~v->flag & (ISSET|ARRAY)) {
-				return 0;
+		if (~v->flag & (ISSET|ARRAY)) {
+			if (asprintf(&name, "complete_%.*s", cmdlen, cmd) == -1)
+				internal_errorf("unable to allocate memory");
+			v = global(name);
+			free(name);
+			if (~v->flag & (ISSET|ARRAY) && completion_helper && completion_helper->flag & ISSET) {
+				v = global("COMPREPLY");
+				if (~v->flag & (ISSET|ARRAY)) {
+					return 0;
+				}
 			}
-			compreply = 1;
-        }
-	}
+		}
+		last_v = v;
+    }
 
 	/* Walk the array and build words list. */
 	for (vp = v; vp; vp = vp->u.array) {
@@ -728,9 +739,6 @@ x_try_array(const char *buf, int buflen, const char *want, int wantlen,
 	}
 	if (*nwords != 0)
 		(*words)[*nwords] = NULL;
-
-	if(compreply)
-		unset(v, 0);
 
 	return *nwords != 0;
 }
