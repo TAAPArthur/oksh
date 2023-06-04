@@ -2047,6 +2047,10 @@ expand_or_cycle_word(int command, int limit)
 	int i;
 	static index;
 
+    if(expanded == NONE) {
+        index = 0;
+    }
+
 	/* Undo previous expansion */
 	if (command == 0 && expanded == EXPAND && buf) {
 		restore_edstate(es, buf);
