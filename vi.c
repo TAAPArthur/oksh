@@ -250,6 +250,10 @@ x_vi(char *buf, size_t len)
             vi_hook(edchars.erase);
             c = CTRL('[');
         }
+        if(insert && c == CTRL('r')) {
+            vi_hook(edchars.erase);
+            vi_hook(CTRL('['));
+        }
 
 		if (vi_hook(c))
 			break;
@@ -308,6 +312,8 @@ vi_hook(int ch)
 				argc1 = ch - '0';
 				state = VARG1;
 			} else {
+                if (CTRL('r') == ch)
+                    ch = '/';
 				curcmd[cmdlen++] = ch;
 				state = nextstate(ch);
 				if (state == VSEARCH) {
