@@ -681,10 +681,12 @@ x_try_array(const char *buf, int buflen, const char *want, int wantlen,
 			n++;
 	}
 
+    bool found_match = 0;
 	int old_cword, old_cpoint;
-    if (getint(global("COMP_CWORD"), &old_cword, false) != -1 && old_cword == n &&
+    if (last_v && getint(global("COMP_CWORD"), &old_cword, false) != -1 && old_cword == n &&
             getint(global("COMP_POINT"), &old_cpoint, false) != -1 && old_cpoint  == want + wantlen - buf) {
 			v = last_v;
+            found_match = 1;
     } else {
 		if(last_v) {
 			unset(last_v, 0);
@@ -713,6 +715,7 @@ x_try_array(const char *buf, int buflen, const char *want, int wantlen,
 				if (~v->flag & (ISSET|ARRAY)) {
 					return 0;
 				}
+                found_match = 1;
 			}
 		}
 		last_v = v;
@@ -740,7 +743,7 @@ x_try_array(const char *buf, int buflen, const char *want, int wantlen,
 	if (*nwords != 0)
 		(*words)[*nwords] = NULL;
 
-	return *nwords != 0;
+	return found_match || *nwords != 0;
 }
 
 int
